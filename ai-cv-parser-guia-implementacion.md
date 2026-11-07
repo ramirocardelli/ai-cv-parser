@@ -199,6 +199,9 @@ Activar Row Level Security:
 
 ``` sql
 alter table public.candidates enable row level security;
+
+grant usage on schema public to service_role;
+grant insert, update on table public.candidates to service_role;
 ```
 
 En este prototipo, Next.js y n8n acceden desde servidores usando una
@@ -243,6 +246,8 @@ N8N_WEBHOOK_URL=http://localhost:5678/webhook/cv-parser
 ```
 
 Reemplazar los valores por los del proyecto y la URL real del webhook.
+`SUPABASE_SECRET_KEY` debe ser la secret/service-role key del servidor,
+no la publishable/anon key ni una variable `NEXT_PUBLIC_*`.
 
 Agregar `.env.local` a `.gitignore` (create-next-app normalmente ya lo
 hace). No pegar valores reales en capturas, issues ni commits.
@@ -259,6 +264,12 @@ const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
 
 if (!supabaseUrl || !supabaseSecretKey) {
   throw new Error("Missing Supabase server environment variables");
+}
+
+if (supabaseSecretKey.startsWith("sb_publishable_")) {
+  throw new Error(
+    "SUPABASE_SECRET_KEY must be a Supabase secret/service-role key, not a publishable key"
+  );
 }
 
 export const supabaseAdmin = createClient(
@@ -314,8 +325,6 @@ Crear `app/api/candidates/route.ts`:
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-
-export const runtime = "nodejs";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
